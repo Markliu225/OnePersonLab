@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>One Person Lab</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">IDEA LAB</p>
+          <h1>一个人，也能跑完 idea 发现、验证和报告闭环</h1>
+          <p class="hero-text">
+            把 founder brief 交给一组协同 agent。系统会先产出候选 idea，再按评分标准做验证，最后给你实验计划和决策报告。
+          </p>
+          <div class="workflow-strip">
+            <span>Brief</span>
+            <span>Ideas</span>
+            <span>Validation</span>
+            <span>Experiments</span>
+            <span>Report</span>
+          </div>
+        </div>
+        <div class="hero-panel">
+          <div class="metric-card">
+            <span class="metric-label">当前工作流</span>
+            <strong>idea-lab</strong>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">默认 Provider</span>
+            <strong id="provider-badge">加载中</strong>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">报告导出</span>
+            <strong>Markdown</strong>
+          </div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="card mission-card">
+          <div class="section-heading">
+            <h2>Founder Brief</h2>
+            <p>把问题、目标用户、优势和约束交代清楚，agent 才能给出更像样的建议。</p>
+          </div>
+
+          <form id="mission-form" class="mission-form">
+            <div class="form-grid two-up">
+              <label>
+                <span>Run Title</span>
+                <input id="title" name="title" placeholder="例如：为独立开发者寻找 AI 微 SaaS 方向" />
+              </label>
+              <label>
+                <span>Provider</span>
+                <select id="provider" name="provider"></select>
+              </label>
+            </div>
+
+            <label>
+              <span>Problem *</span>
+              <textarea
+                id="problem"
+                name="problem"
+                rows="4"
+                placeholder="例如：跨境卖家每天要手动整合广告、库存和客服信息，决策很慢。"
+                required
+              ></textarea>
+            </label>
+
+            <div class="form-grid two-up">
+              <label>
+                <span>Target User *</span>
+                <textarea
+                  id="targetUser"
+                  name="targetUser"
+                  rows="3"
+                  placeholder="例如：年营收 100 万到 1000 万人民币的跨境电商操盘手。"
+                  required
+                ></textarea>
+              </label>
+              <label>
+                <span>Market Context</span>
+                <textarea
+                  id="marketContext"
+                  name="marketContext"
+                  rows="3"
+                  placeholder="行业现状、竞品密度、行为变化、窗口期等。"
+                ></textarea>
+              </label>
+            </div>
+
+            <div class="form-grid two-up">
+              <label>
+                <span>Founder Strengths</span>
+                <textarea
+                  id="strengths"
+                  name="strengths"
+                  rows="3"
+                  placeholder="你擅长什么：销售、内容、技术、行业资源、交付经验等。"
+                ></textarea>
+              </label>
+              <label>
+                <span>Assets</span>
+                <textarea
+                  id="assets"
+                  name="assets"
+                  rows="3"
+                  placeholder="现有流量、社群、客户、数据、合作伙伴、渠道等。"
+                ></textarea>
+              </label>
+            </div>
+
+            <div class="form-grid two-up">
+              <label>
+                <span>Constraints</span>
+                <textarea
+                  id="constraints"
+                  name="constraints"
+                  rows="3"
+                  placeholder="例如：兼职、预算有限、不能做重交付、希望 30 天内验证。"
+                ></textarea>
+              </label>
+              <label>
+                <span>Business Goal</span>
+                <textarea
+                  id="businessGoal"
+                  name="businessGoal"
+                  rows="3"
+                  placeholder="你想要什么：第一笔收入、产品方向、长期可复利业务等。"
+                ></textarea>
+              </label>
+            </div>
+
+            <div class="form-grid two-up">
+              <label>
+                <span>Validation Goal</span>
+                <textarea
+                  id="validationGoal"
+                  name="validationGoal"
+                  rows="3"
+                  placeholder="你这轮最想确认什么：用户愿不愿意付费、哪个方向最值得做等。"
+                ></textarea>
+              </label>
+              <label>
+                <span>Notes</span>
+                <textarea
+                  id="notes"
+                  name="notes"
+                  rows="3"
+                  placeholder="其他偏好，例如尽量 B2B、不要工具类、优先高客单等。"
+                ></textarea>
+              </label>
+            </div>
+
+            <label>
+              <span>Evidence URLs</span>
+              <textarea
+                id="sourceUrls"
+                name="sourceUrls"
+                rows="4"
+                placeholder="每行一个 URL。可放行业文章、论坛帖子、竞品页面、调研报告。"
+              ></textarea>
+            </label>
+
+            <button type="submit" id="submit-button">Run Idea Lab</button>
+          </form>
+        </section>
+
+        <section class="card sidebar-card">
+          <div class="section-heading">
+            <h2>Agent Roster</h2>
+            <p>当前这轮负责从 brief 到报告的协作角色。</p>
+          </div>
+          <div id="agents" class="agent-grid"></div>
+        </section>
+
+        <section class="card sidebar-card">
+          <div class="section-heading">
+            <h2>Run History</h2>
+            <p>查看历史 idea 验证记录和推荐结果。</p>
+          </div>
+          <div id="runs" class="runs-list"></div>
+        </section>
+
+        <section class="card detail-card">
+          <div class="section-heading">
+            <h2>Decision Board</h2>
+            <p>推荐结果、评分矩阵、实验计划和最终报告都会汇总在这里。</p>
+          </div>
+
+          <div id="empty-state" class="empty-state">
+            还没有选中 run。先提交一个 founder brief，或者从右侧打开一条历史记录。
+          </div>
+
+          <div id="run-detail" class="run-detail hidden">
+            <div class="detail-top">
+              <div>
+                <p class="detail-label">Current Run</p>
+                <h3 id="detail-objective"></h3>
+              </div>
+              <div class="status-pill" id="detail-status"></div>
+            </div>
+
+            <div class="recommendation-card">
+              <div>
+                <p class="detail-label">Recommended Idea</p>
+                <h3 id="detail-recommendation-name">等待结果</h3>
+              </div>
+              <div class="recommendation-meta">
+                <span class="decision-pill" id="detail-decision">pending</span>
+                <a id="report-link" class="report-link hidden" target="_blank" rel="noreferrer">Export report</a>
+              </div>
+              <p id="detail-recommendation-rationale" class="recommendation-rationale"></p>
+            </div>
+
+            <div class="detail-grid">
+              <div class="detail-block">
+                <p class="detail-label">North Star</p>
+                <p id="detail-north-star"></p>
+              </div>
+              <div class="detail-block">
+                <p class="detail-label">Success Criteria</p>
+                <ul id="detail-criteria"></ul>
+              </div>
+            </div>
+
+            <div class="detail-grid">
+              <div class="detail-block">
+                <p class="detail-label">Brief Snapshot</p>
+                <div id="detail-brief" class="brief-grid"></div>
+              </div>
+              <div class="detail-block">
+                <p class="detail-label">Evidence</p>
+                <div id="detail-evidence" class="evidence-list"></div>
+              </div>
+            </div>
+
+            <div class="detail-block">
+              <p class="detail-label">Idea Scoreboard</p>
+              <div id="detail-scoreboard" class="scoreboard"></div>
+            </div>
+
+            <div class="detail-grid">
+              <div class="detail-block">
+                <p class="detail-label">Experiments</p>
+                <div id="detail-experiments" class="experiment-list"></div>
+              </div>
+              <div class="detail-block">
+                <p class="detail-label">Run Timeline</p>
+                <div id="detail-timeline" class="timeline-list"></div>
+              </div>
+            </div>
+
+            <div class="detail-block">
+              <p class="detail-label">Final Report</p>
+              <pre id="detail-report" class="report-block"></pre>
+            </div>
+
+            <div class="detail-block">
+              <p class="detail-label">Artifacts</p>
+              <div id="detail-artifacts" class="artifact-list"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>
