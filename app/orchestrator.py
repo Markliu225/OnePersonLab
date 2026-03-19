@@ -197,7 +197,12 @@ class OnePersonLabOrchestrator:
         results: list[CodingFeedback] = []
 
         for agent in config.coding_agents:
-            proposal_prompt = self._build_coding_prompt(config.topic, conclusion, iteration)
+            proposal_prompt = self._build_coding_prompt(
+                topic=config.topic,
+                conclusion=conclusion,
+                iteration=iteration,
+                sandbox_mode=config.sandbox.mode,
+            )
             proposal = await self._stream_turn(
                 stage="coding_proposal",
                 iteration=iteration,
@@ -211,7 +216,47 @@ class OnePersonLabOrchestrator:
                 content=proposal,
                 timeout_sec=config.execution_timeout_sec,
                 base_dir=run_dir,
+                workspace_root=self._workspace_root,
+                sandbox=config.sandbox,
             )
+
+            repair_attempt = 0
+            while repair_attempt < config.coding_repair_attempts and (
+                execution.setup_failed or execution.exit_code != 0 or execution.timed_out
+            ):
+                repair_attempt += 1
+                await self._emit(
+                    {
+                        "type": "repair_attempt_started",
+                        "iteration": iteration,
+                        "agent_id": agent.id,
+                        "agent_name": agent.name,
+                        "repair_attempt": repair_attempt,
+                        "reason": "Execution failed, requesting code repair.",
+                    }
+                )
+                repair_prompt = self._build_repair_prompt(
+                    topic=config.topic,
+                    conclusion=conclusion,
+                    previous_proposal=proposal,
+                    execution=execution,
+                    repair_attempt=repair_attempt,
+                )
+                proposal = await self._stream_turn(
+                    stage="coding_repair",
+                    iteration=iteration,
+                    round_index=repair_attempt,
+                    agent=agent,
+                    user_prompt=repair_prompt,
+                )
+                execution = await run_generated_experiment(
+                    agent_id=agent.id or "coding-agent",
+                    content=proposal,
+                    timeout_sec=config.execution_timeout_sec,
+                    base_dir=run_dir,
+                    workspace_root=self._workspace_root,
+                    sandbox=config.sandbox,
+                )
 
             await self._emit(
                 {
@@ -223,6 +268,13 @@ class OnePersonLabOrchestrator:
                     "exit_code": execution.exit_code,
                     "timed_out": execution.timed_out,
                     "script_path": execution.script_path,
+                    "repair_attempt": repair_attempt,
+                    "python_executable": execution.python_executable,
+                    "sandbox_mode": execution.sandbox_mode,
+                    "requirements": execution.requirements,
+                    "setup_failed": execution.setup_failed,
+                    "setup_stdout": self._truncate(execution.setup_stdout, 3000),
+                    "setup_stderr": self._truncate(execution.setup_stderr, 3000),
                     "stdout": self._truncate(execution.stdout, 5000),
                     "stderr": self._truncate(execution.stderr, 5000),
                 }
@@ -465,19 +517,51 @@ class OnePersonLabOrchestrator:
             "Next Action: <one sentence>"
         )
 
-    def _build_coding_prompt(self, topic: str, conclusion: str, iteration: int) -> str:
+    def _build_coding_prompt(self, *, topic: str, conclusion: str, iteration: int, sandbox_mode: str) -> str:
         return (
             "You are a coding validation agent in a research lab.\n"
             f"Topic: {topic}\n"
             f"Conclusion candidate to validate: {conclusion}\n"
             f"Iteration: {iteration}\n"
+            f"Local sandbox mode: {sandbox_mode}\n"
             "Create one reproducible Python experiment to test a key claim.\n"
             "Output format:\n"
             "1) Brief rationale (max 4 sentences)\n"
-            "2) A single Python code block\n"
-            "3) One command line in the form RUN: python experiment.py\n"
-            "4) Expected signal that would support or weaken the claim\n"
-            "Keep dependencies minimal; prefer Python standard library."
+            "2) Optional dependency block using ```requirements ... ``` (only if needed)\n"
+            "3) A single Python code block that is runnable locally on CPU\n"
+            "4) One command line in the form RUN: python experiment.py\n"
+            "5) Expected signal that would support or weaken the claim\n"
+            "Keep runtime short. For deep learning (e.g., CNN), use a tiny dataset/sample and minimal epochs."
+        )
+
+    def _build_repair_prompt(
+        self,
+        *,
+        topic: str,
+        conclusion: str,
+        previous_proposal: str,
+        execution: ExecutionResult,
+        repair_attempt: int,
+    ) -> str:
+        return (
+            "Your previous experiment did not run successfully. Repair it and return a fully runnable version.\n"
+            f"Repair attempt: {repair_attempt}\n"
+            f"Topic: {topic}\n"
+            f"Conclusion candidate: {conclusion}\n"
+            f"Previous proposal:\n{self._truncate(previous_proposal, 2200)}\n\n"
+            f"Sandbox mode: {execution.sandbox_mode}\n"
+            f"Python executable: {execution.python_executable}\n"
+            f"Setup failed: {execution.setup_failed}\n"
+            f"Setup stdout:\n{self._truncate(execution.setup_stdout, 1800)}\n"
+            f"Setup stderr:\n{self._truncate(execution.setup_stderr, 1800)}\n"
+            f"Execution stderr:\n{self._truncate(execution.stderr, 2200)}\n\n"
+            "Return the same output format:\n"
+            "1) Brief rationale\n"
+            "2) Optional ```requirements``` block\n"
+            "3) One Python code block\n"
+            "4) RUN: python experiment.py\n"
+            "5) Expected signal\n"
+            "Do not explain the old error; provide corrected runnable output."
         )
 
     def _build_analysis_prompt(
@@ -493,6 +577,12 @@ class OnePersonLabOrchestrator:
             f"Conclusion candidate: {conclusion}\n"
             f"Agent proposal:\n{self._truncate(proposal, 1800)}\n\n"
             "Execution logs:\n"
+            f"Sandbox mode: {execution.sandbox_mode}\n"
+            f"Python executable: {execution.python_executable}\n"
+            f"Requirements: {', '.join(execution.requirements) if execution.requirements else 'None'}\n"
+            f"Setup failed: {execution.setup_failed}\n"
+            f"Setup STDOUT:\n{self._truncate(execution.setup_stdout, 1200)}\n"
+            f"Setup STDERR:\n{self._truncate(execution.setup_stderr, 1200)}\n"
             f"Command: {execution.command}\n"
             f"Exit code: {execution.exit_code}\n"
             f"Timed out: {execution.timed_out}\n"

@@ -37,46 +37,57 @@ async def health() -> JSONResponse:
 @app.get("/api/default-config")
 async def default_config() -> LabConfig:
     return LabConfig(
-        topic="Design a low-cost autonomous research loop for prompt optimization.",
+        topic="Design and validate a lightweight CNN for image classification that can run locally on CPU.",
         iterations=2,
         discussion_rounds=2,
-        execution_timeout_sec=60,
+        execution_timeout_sec=180,
+        coding_repair_attempts=2,
+        sandbox={
+            "mode": "ephemeral_venv",
+            "python_bin": "python3",
+            "shared_venv_path": ".lab_venv",
+            "auto_install_requirements": True,
+            "setup_timeout_sec": 600,
+        },
         idea_agents=[
             {
-                "name": "Theory Builder",
+                "name": "CNN Architect",
                 "model": "gpt-5.3",
                 "temperature": 0.7,
                 "system_prompt": (
-                    "You are a theory-oriented research scientist. Build testable hypotheses "
-                    "and make assumptions explicit."
+                    "You are a deep learning researcher. Propose CNN architectures with explicit "
+                    "assumptions about data, compute, and expected behavior."
                 ),
             },
             {
-                "name": "Skeptical Reviewer",
+                "name": "Robustness Reviewer",
                 "model": "gpt-5.3",
                 "temperature": 0.4,
                 "system_prompt": (
-                    "You are a critical reviewer. Find weak claims, confounders, and failure modes."
+                    "You are a critical reviewer. Find weak claims, confounders, and failure modes "
+                    "for CNN design and training setup."
                 ),
             },
         ],
         coding_agents=[
             {
-                "name": "Rapid Prototyper",
+                "name": "CNN Prototyper",
                 "model": "gpt-5.3",
                 "temperature": 0.3,
-                "max_tokens": 1600,
+                "max_tokens": 2200,
                 "system_prompt": (
-                    "You are an experimental engineer. Produce concise, runnable Python validations."
+                    "You are an ML engineer. Produce concise, runnable CNN experiments that can run "
+                    "locally on CPU."
                 ),
             },
             {
-                "name": "Adversarial Tester",
+                "name": "Training Debugger",
                 "model": "gpt-5.3",
                 "temperature": 0.5,
-                "max_tokens": 1600,
+                "max_tokens": 2200,
                 "system_prompt": (
-                    "You stress-test hypotheses with edge cases and robustness checks."
+                    "You stress-test CNN experiments, especially data preprocessing, shape mismatches, "
+                    "and unstable training behavior."
                 ),
             },
         ],

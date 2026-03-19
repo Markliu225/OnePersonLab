@@ -10,6 +10,14 @@ const topicEl = document.getElementById("topic");
 const iterationsEl = document.getElementById("iterations");
 const discussionRoundsEl = document.getElementById("discussionRounds");
 const executionTimeoutEl = document.getElementById("executionTimeout");
+const codingRepairAttemptsEl = document.getElementById("codingRepairAttempts");
+const sandboxModeEl = document.getElementById("sandboxMode");
+const sandboxPythonBinEl = document.getElementById("sandboxPythonBin");
+const sandboxSharedVenvPathEl = document.getElementById("sandboxSharedVenvPath");
+const sandboxAutoInstallEl = document.getElementById("sandboxAutoInstall");
+const sandboxSetupTimeoutEl = document.getElementById("sandboxSetupTimeout");
+const sandboxPipIndexUrlEl = document.getElementById("sandboxPipIndexUrl");
+const sandboxPipExtraIndexUrlEl = document.getElementById("sandboxPipExtraIndexUrl");
 
 const startRunBtn = document.getElementById("startRun");
 const clearFeedBtn = document.getElementById("clearFeed");
@@ -24,6 +32,14 @@ let defaults = null;
 
 function uid() {
   return Math.random().toString(36).slice(2, 8);
+}
+
+function parseNumberOrDefault(raw, fallback) {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) {
+    return fallback;
+  }
+  return n;
 }
 
 function escapeText(text) {
@@ -83,11 +99,12 @@ function addAgentCard(container, agent, removable = true) {
 
   const row2 = document.createElement("div");
   row2.className = "row";
-  row2.appendChild(inputField("Max tokens", "max_tokens", agent.max_tokens ?? 900, "number", {
-    min: "64",
-    max: "4000",
-    step: "1",
-  }));
+  row2.appendChild(
+    inputField("Max tokens (0 = auto)", "max_tokens", agent.max_tokens ?? 900, "number", {
+      min: "0",
+      step: "1",
+    })
+  );
   row2.appendChild(document.createElement("div"));
   card.appendChild(row2);
 
@@ -128,11 +145,12 @@ function textareaField(label, key, value) {
 
 function cardToAgent(card) {
   const get = (k) => card.querySelector(`[data-field='${k}']`)?.value ?? "";
+  const rawMaxTokens = parseNumberOrDefault(get("max_tokens"), 900);
   return {
     name: get("name"),
     model: get("model"),
-    temperature: Number(get("temperature")) || 0.7,
-    max_tokens: Number(get("max_tokens")) || 900,
+    temperature: parseNumberOrDefault(get("temperature"), 0.7),
+    max_tokens: rawMaxTokens <= 0 ? null : Math.floor(rawMaxTokens),
     system_prompt: get("system_prompt"),
   };
 }
@@ -152,9 +170,19 @@ function gatherConfig() {
 
   return {
     topic: topicEl.value.trim(),
-    iterations: Number(iterationsEl.value) || 2,
-    discussion_rounds: Number(discussionRoundsEl.value) || 2,
-    execution_timeout_sec: Number(executionTimeoutEl.value) || 60,
+    iterations: Math.max(1, Math.floor(parseNumberOrDefault(iterationsEl.value, 2))),
+    discussion_rounds: Math.max(1, Math.floor(parseNumberOrDefault(discussionRoundsEl.value, 2))),
+    execution_timeout_sec: Math.max(0, Math.floor(parseNumberOrDefault(executionTimeoutEl.value, 180))),
+    coding_repair_attempts: Math.max(0, Math.floor(parseNumberOrDefault(codingRepairAttemptsEl.value, 0))),
+    sandbox: {
+      mode: sandboxModeEl.value || "ephemeral_venv",
+      python_bin: sandboxPythonBinEl.value.trim() || "python3",
+      shared_venv_path: sandboxSharedVenvPathEl.value.trim() || ".lab_venv",
+      auto_install_requirements: sandboxAutoInstallEl.value === "true",
+      setup_timeout_sec: Math.max(0, Math.floor(parseNumberOrDefault(sandboxSetupTimeoutEl.value, 300))),
+      pip_index_url: sandboxPipIndexUrlEl.value.trim() || null,
+      pip_extra_index_url: sandboxPipExtraIndexUrlEl.value.trim() || null,
+    },
     idea_agents: ideaAgents,
     coding_agents: codingAgents,
     paper_agent: cardToAgent(paperCard),
@@ -163,9 +191,20 @@ function gatherConfig() {
 
 function renderFromDefaults(cfg) {
   topicEl.value = cfg.topic || "";
-  iterationsEl.value = cfg.iterations || 2;
-  discussionRoundsEl.value = cfg.discussion_rounds || 2;
-  executionTimeoutEl.value = cfg.execution_timeout_sec || 60;
+  iterationsEl.value = cfg.iterations ?? 2;
+  discussionRoundsEl.value = cfg.discussion_rounds ?? 2;
+  executionTimeoutEl.value = cfg.execution_timeout_sec ?? 180;
+  codingRepairAttemptsEl.value = cfg.coding_repair_attempts ?? 2;
+
+  const sandbox = cfg.sandbox || {};
+  sandboxModeEl.value = sandbox.mode || "ephemeral_venv";
+  sandboxPythonBinEl.value = sandbox.python_bin || "python3";
+  sandboxSharedVenvPathEl.value = sandbox.shared_venv_path || ".lab_venv";
+  sandboxAutoInstallEl.value =
+    sandbox.auto_install_requirements === false ? "false" : "true";
+  sandboxSetupTimeoutEl.value = sandbox.setup_timeout_sec ?? 300;
+  sandboxPipIndexUrlEl.value = sandbox.pip_index_url || "";
+  sandboxPipExtraIndexUrlEl.value = sandbox.pip_extra_index_url || "";
 
   ideaAgentsEl.innerHTML = "";
   codingAgentsEl.innerHTML = "";
@@ -225,9 +264,18 @@ function handleEvent(payload) {
 
   if (t === "execution_result") {
     const body = [
+      `Sandbox mode: ${payload.sandbox_mode}`,
+      `Python: ${payload.python_executable}`,
+      `Requirements: ${(payload.requirements || []).join(", ") || "None"}`,
+      `Setup failed: ${payload.setup_failed}`,
+      `Repair attempt: ${payload.repair_attempt ?? 0}`,
       `Command: ${payload.command}`,
       `Exit: ${payload.exit_code}  Timed out: ${payload.timed_out}`,
       `Script: ${payload.script_path}`,
+      "--- SETUP STDOUT ---",
+      payload.setup_stdout || "",
+      "--- SETUP STDERR ---",
+      payload.setup_stderr || "",
       "--- STDOUT ---",
       payload.stdout || "",
       "--- STDERR ---",
@@ -238,6 +286,14 @@ function handleEvent(payload) {
       `[execution] iter=${payload.iteration} ${payload.agent_name}`,
       body,
       "execution"
+    );
+    return;
+  }
+
+  if (t === "repair_attempt_started") {
+    createEvent(
+      `[repair_attempt] iter=${payload.iteration} ${payload.agent_name} attempt=${payload.repair_attempt}`,
+      payload.reason || ""
     );
     return;
   }
@@ -349,7 +405,7 @@ addIdeaAgentBtn.addEventListener("click", () => {
     name: `Idea Agent ${uid()}`,
     model: "gpt-5.3",
     temperature: 0.7,
-    max_tokens: 900,
+    max_tokens: 0,
     system_prompt: "You are a research debater. Contribute rigorously and concretely.",
   });
 });
@@ -359,7 +415,7 @@ addCodingAgentBtn.addEventListener("click", () => {
     name: `Coding Agent ${uid()}`,
     model: "gpt-5.3",
     temperature: 0.4,
-    max_tokens: 900,
+    max_tokens: 0,
     system_prompt: "You validate hypotheses with executable Python experiments.",
   });
 });

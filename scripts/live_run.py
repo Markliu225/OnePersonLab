@@ -16,12 +16,26 @@ from app.orchestrator import OnePersonLabOrchestrator
 from app.schemas import LabConfig
 
 
-def build_config(topic: str, model: str) -> LabConfig:
+def build_config(
+    topic: str,
+    model: str,
+    sandbox_mode: str,
+    shared_venv_path: str,
+    auto_install_requirements: bool,
+) -> LabConfig:
     return LabConfig(
         topic=topic,
         iterations=1,
         discussion_rounds=1,
         execution_timeout_sec=45,
+        coding_repair_attempts=2,
+        sandbox={
+            "mode": sandbox_mode,
+            "python_bin": "python3",
+            "shared_venv_path": shared_venv_path,
+            "auto_install_requirements": auto_install_requirements,
+            "setup_timeout_sec": 600,
+        },
         idea_agents=[
             {
                 "name": "Hypothesis Builder",
@@ -61,6 +75,22 @@ async def main() -> None:
     parser = argparse.ArgumentParser(description="Run one real One-Person-Lab iteration in terminal")
     parser.add_argument("--topic", required=True, help="Research topic")
     parser.add_argument("--model", default="gpt-5.3", help="OpenAI model id")
+    parser.add_argument(
+        "--sandbox-mode",
+        default="ephemeral_venv",
+        choices=["system", "ephemeral_venv", "shared_venv"],
+        help="Local execution sandbox mode",
+    )
+    parser.add_argument(
+        "--shared-venv-path",
+        default=".lab_venv",
+        help="Path for shared venv when sandbox mode is shared_venv",
+    )
+    parser.add_argument(
+        "--no-auto-install-requirements",
+        action="store_true",
+        help="Disable automatic installation of requirements blocks from coding agents",
+    )
     args = parser.parse_args()
 
     load_project_env(PROJECT_ROOT)
@@ -74,7 +104,13 @@ async def main() -> None:
             return
         print(f"[{et}] {event}")
 
-    config = build_config(args.topic, args.model)
+    config = build_config(
+        topic=args.topic,
+        model=args.model,
+        sandbox_mode=args.sandbox_mode,
+        shared_venv_path=args.shared_venv_path,
+        auto_install_requirements=not args.no_auto_install_requirements,
+    )
     client = OpenAIChatClient(api_key=api_key)
     orchestrator = OnePersonLabOrchestrator(client=client, emit=emit, workspace_root=PROJECT_ROOT)
 

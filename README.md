@@ -14,8 +14,15 @@
 - 默认模型为 `gpt-5.3`（也可在界面改成 `gpt-5.2` 等）
 - WebSocket 实时流式展示每个智能体 token 输出
 - 真实 OpenAI API 调用（后端 `AsyncOpenAI`）
-- 真实代码执行反馈（非打分）：命令、退出码、stdout、stderr、超时状态
+- 本地沙箱可配置执行（`system`/`ephemeral_venv`/`shared_venv`）
+- coding agent 支持依赖清单自动安装与失败自动修复重试
+- 真实代码执行反馈（非打分）：命令、退出码、stdout、stderr、setup日志、超时状态
 - 自动生成论文草稿（Markdown）
+
+超时与 token 限制说明：
+- `max_tokens` 不再有应用内上限。可在 UI 填更大值，或填 `0` 表示不传该参数给模型（由模型端默认行为决定）。
+- `execution_timeout_sec` 支持 `0`，表示实验执行不设置超时。
+- `sandbox.setup_timeout_sec` 支持 `0`，表示环境创建/依赖安装不设置超时。
 
 ## 项目结构
 
@@ -42,6 +49,7 @@ uvicorn app.main:app --reload
 
 ```bash
 python3 scripts/live_run.py --topic "你的研究问题"
+# 可选: --sandbox-mode shared_venv --shared-venv-path .lab_venv
 ```
 
 ## API Key
@@ -71,6 +79,7 @@ uvicorn app.main:app --reload
 - `token`
 - `message_done`
 - `execution_result`
+- `repair_attempt_started`
 - `consensus_update`
 - `iteration_conclusion`
 - `coding_summary_done`

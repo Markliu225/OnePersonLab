@@ -27,7 +27,34 @@
             </div>
           </div>
           <label for="executionTimeout">Execution timeout (sec)</label>
-          <input id="executionTimeout" type="number" min="5" max="600" value="60" />
+          <input id="executionTimeout" type="number" min="0" value="180" />
+          <label for="codingRepairAttempts">Coding repair attempts</label>
+          <input id="codingRepairAttempts" type="number" min="0" max="5" value="2" />
+        </section>
+
+        <section>
+          <h2>Local Sandbox</h2>
+          <label for="sandboxMode">Mode</label>
+          <select id="sandboxMode">
+            <option value="ephemeral_venv">ephemeral_venv (per run)</option>
+            <option value="shared_venv">shared_venv (persistent)</option>
+            <option value="system">system (no venv)</option>
+          </select>
+          <label for="sandboxPythonBin">Python binary</label>
+          <input id="sandboxPythonBin" type="text" value="python3" />
+          <label for="sandboxSharedVenvPath">Shared venv path</label>
+          <input id="sandboxSharedVenvPath" type="text" value=".lab_venv" />
+          <label for="sandboxAutoInstall">Auto install requirements</label>
+          <select id="sandboxAutoInstall">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+          <label for="sandboxSetupTimeout">Setup timeout (sec)</label>
+          <input id="sandboxSetupTimeout" type="number" min="0" value="300" />
+          <label for="sandboxPipIndexUrl">PIP index URL (optional)</label>
+          <input id="sandboxPipIndexUrl" type="text" placeholder="https://pypi.org/simple" />
+          <label for="sandboxPipExtraIndexUrl">PIP extra index URL (optional)</label>
+          <input id="sandboxPipExtraIndexUrl" type="text" placeholder="https://download.pytorch.org/whl/cpu" />
         </section>
 
         <section>

@@ -29,9 +29,11 @@ class OpenAIChatClient:
     def _with_token_param(
         *,
         model: str,
-        max_tokens: int,
+        max_tokens: int | None,
         prefer_completion_param: bool,
-    ) -> tuple[dict[str, int], str]:
+    ) -> tuple[dict[str, int], str | None]:
+        if max_tokens is None or max_tokens <= 0:
+            return {}, None
         param = "max_completion_tokens" if prefer_completion_param else "max_tokens"
         return {param: max_tokens}, param
 
@@ -60,11 +62,12 @@ class OpenAIChatClient:
         try:
             stream = await self._client.chat.completions.create(**request_kwargs)
         except BadRequestError as exc:
-            if not self._is_token_param_error(exc):
+            if not token_param or not self._is_token_param_error(exc):
                 raise
             alt_param = "max_tokens" if token_param == "max_completion_tokens" else "max_completion_tokens"
             request_kwargs.pop(token_param, None)
-            request_kwargs[alt_param] = agent.max_tokens
+            if agent.max_tokens is not None:
+                request_kwargs[alt_param] = agent.max_tokens
             stream = await self._client.chat.completions.create(**request_kwargs)
 
         content: list[str] = []
@@ -102,11 +105,12 @@ class OpenAIChatClient:
         try:
             response = await self._client.chat.completions.create(**request_kwargs)
         except BadRequestError as exc:
-            if not self._is_token_param_error(exc):
+            if not token_param or not self._is_token_param_error(exc):
                 raise
             alt_param = "max_tokens" if token_param == "max_completion_tokens" else "max_completion_tokens"
             request_kwargs.pop(token_param, None)
-            request_kwargs[alt_param] = agent.max_tokens
+            if agent.max_tokens is not None:
+                request_kwargs[alt_param] = agent.max_tokens
             response = await self._client.chat.completions.create(**request_kwargs)
 
         return (response.choices[0].message.content or "").strip()
