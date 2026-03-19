@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>One-Person Lab</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <aside class="panel sidebar">
+        <h1>One-Person Lab</h1>
+        <p class="subtitle">Multi-agent discussion -> coding validation -> paper drafting</p>
+
+        <section>
+          <h2>Research Setup</h2>
+          <label for="topic">Topic</label>
+          <textarea id="topic" placeholder="Type your research question..."></textarea>
+          <div class="row">
+            <div>
+              <label for="iterations">Iterations</label>
+              <input id="iterations" type="number" min="1" max="6" value="2" />
+            </div>
+            <div>
+              <label for="discussionRounds">Discussion rounds / iteration</label>
+              <input id="discussionRounds" type="number" min="1" max="6" value="2" />
+            </div>
+          </div>
+          <label for="executionTimeout">Execution timeout (sec)</label>
+          <input id="executionTimeout" type="number" min="5" max="600" value="60" />
+        </section>
+
+        <section>
+          <h2>Idea Agents</h2>
+          <div id="ideaAgents" class="agent-list"></div>
+          <div class="actions">
+            <button id="addIdeaAgent" class="secondary">Add Idea Agent</button>
+            <button id="resetIdeaAgents" class="secondary">Reset Defaults</button>
+          </div>
+        </section>
+
+        <section>
+          <h2>Coding Agents</h2>
+          <div id="codingAgents" class="agent-list"></div>
+          <div class="actions">
+            <button id="addCodingAgent" class="secondary">Add Coding Agent</button>
+            <button id="resetCodingAgents" class="secondary">Reset Defaults</button>
+          </div>
+        </section>
+
+        <section>
+          <h2>Paper Agent</h2>
+          <div id="paperAgent" class="agent-list"></div>
+        </section>
+
+        <div class="actions">
+          <button id="startRun" class="primary">Start Real Run</button>
+          <button id="clearFeed" class="secondary">Clear Feed</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <section class="panel log-panel">
+          <div class="log-header">
+            <h2>Live Agent Stream</h2>
+            <div id="statusBadge" class="badge">Idle</div>
+          </div>
+          <div id="feed" class="feed"></div>
+        </section>
+
+        <section class="panel paper-panel">
+          <div class="log-header">
+            <h2>Paper Draft</h2>
+            <span class="small">Generated after iterative loops finish</span>
+          </div>
+          <div id="paper" class="paper"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
